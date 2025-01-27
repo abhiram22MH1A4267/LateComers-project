@@ -1,0 +1,237 @@
+import React, { useEffect, useState } from "react";
+import { Row, Col, Card, CardBody, Button } from "reactstrap";
+import { AvForm, AvField } from "availity-reactstrap-validation";
+import { MDBDataTable } from "mdbreact";
+// import ViewStudentData from "./ViewStudentData";
+// import ViewStudentData from "./viewSuspendStudent"
+import ViewStudentData from "./ViewStudentSuspendData"
+import axios from "axios";
+import Loader from "./loader";
+import moment from "moment";
+import * as xlsx from 'xlsx';
+
+const SuspendedStudent = () => {
+  const baseUrl = process.env.REACT_APP_API;
+  const [loader, setLoader] = useState(false);
+  const [searchParameter, setSearchParameter] = useState("");
+  const [ModalOpen, setModalOpen] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState(null);
+  const [suspendedStudents, setSuspendedStudents] = useState([]);
+  const [update , setUpdate] = useState(true);
+
+
+  useEffect(() => {
+    setTimeout(() =>{
+      axios.get(baseUrl + "/get-SuspendList")
+        .then((res) => {
+          setSuspendedStudents(res.data);
+          console.log(res.data)
+        })
+        .catch((err) => {
+          console.error("Error fetching suspended students:", err);
+        });
+        console.log("Testsing....")
+    },1000)
+  }, [ModalOpen]);
+
+  const handleAdd = async () => {
+    setUpdate(!update)
+    setLoader(true);
+    axios.post(baseUrl + "/get-Studentss", { roll: searchParameter.toUpperCase() })
+      .then((res) => {
+        setSelectedStudent(res.data[0]);
+        setModalOpen(true);
+      })
+      .catch((err) => {
+        console.error("Error fetching student data:", err);
+      })
+      .finally(() =>{
+        setLoader(false);
+      })
+    setSearchParameter("");
+  };
+
+  const openViewStudent = (student) => {
+    setSelectedStudent(student);
+    setModalOpen(true);
+  };
+
+  const downloadExcel = () => {
+    const worksheet = xlsx.utils.json_to_sheet(suspendedStudents);
+    const workbook = xlsx.utils.book_new();
+    xlsx.utils.book_append_sheet(workbook, worksheet, "Suspended Students");
+    xlsx.writeFile(workbook, `Suspended_Students-till-${moment(new Date()).format("DD-MM-YYYY")}.xlsx`);
+  };
+
+  const downloadCSV = () => {
+    const csvData = suspendedStudents.map(student => ({
+      "Roll No": student.studentRoll,
+      "Name": student.studentName,
+      "College": student.college,
+      "Branch": student.branch,
+      "Mobile": student.studentMobile,
+      "Father Name": student.fatherName,
+      "Father Mobile": student.fatherMobile,
+    }));
+
+    const csvRows = [
+      ["Roll No", "Name", "College", "Branch", "Mobile", "Father Name", "Father Mobile"], // Header row
+      ...csvData.map(row => [
+        row["Roll No"],
+        row["Name"],
+        row["College"],
+        row["Branch"],
+        row["Mobile"],
+        row["Father Name"],
+        row["Father Mobile"],
+      ]),
+    ];
+
+    const csvContent = "data:text/csv;charset=utf-8," + csvRows.map(e => e.join(",")).join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `suspended_students-till-${moment(new Date()).format("DD-MM-YYYY")}.csv`);
+    document.body.appendChild(link);
+    link.click();
+  };
+
+  const tableData = {
+    columns: [
+      { label: "Roll No", field: "studentRoll", sort: "asc", width: 150 },
+      { label: "Name", field: "studentName", sort: "asc", width: 270 },
+      { label: "College", field: "college", sort: "asc", width: 100 },
+      { label: "Branch", field: "branch", sort: "asc", width: 150 },
+      { label: "Action", field: "action", sort: "disabled", width: 100 },
+    ],
+    rows: suspendedStudents.map((student) => ({
+      ...student,
+      action: (
+        <Button color="primary" size="sm" onClick={() => openViewStudent(student)}>
+          View
+        </Button>
+      ),
+    })),
+  };
+
+  return (
+    <div style={{ width: "100%", display: "flex", justifyContent: "center", alignItems: "center", flexDirection: "column" }}>
+      
+        <div style={{ width: "100%" }}>
+          {selectedStudent && (
+            <ViewStudentData
+              isOpen={ModalOpen}
+              toggle={() => setModalOpen(!ModalOpen)}
+              student={selectedStudent}
+              hook = {update}
+            />
+          )}
+          <div style={styles.container}>
+            <h2 style={styles.heading}>Add Suspended Student</h2>
+            <AvForm style={styles.form}>
+                <div style={{display:"flex", gap:"15px" }}>
+                  <div>
+                <label style={styles.label}>Enter Student ID </label>
+                <AvField
+                  name="rollNO"
+                  placeholder="Search by Roll No"
+                  type="text"
+                  errorMessage="Please enter the roll no."
+                  className="form-control"
+                  validate={{ required: { value: true } }}
+                  value={searchParameter}
+                  style={styles.input}
+                  onChange={(e) => setSearchParameter(e.target.value)}
+                />
+                </div>
+              {/* <div> */}
+                <Button color="primary" type="submit" style={styles.button} onClick={handleAdd}>
+                  ADD
+                </Button>
+              {/* </div> */}
+              </div>
+            </AvForm>
+          </div>
+
+          <div className="table">
+            <Row>
+              <Col className="col-12">
+                <Card>
+                  <CardBody>
+                    <div className="d-flex justify-content-between align-items-center mb-3" style={{ margin: -20 }}>
+                      <h1 style={{ fontSize: "25px", margin: 0 }}>Suspended Students</h1>
+                      <div className="d-flex">
+                        <Button type="button" color="primary" onClick={downloadExcel} style={{ margin: 10, fontWeight: 600 }}>
+                          EXCEL
+                        </Button>
+                        <Button type="button" color="primary" onClick={downloadCSV} style={{ margin: 10, fontWeight: 600 }}>
+                          CSV
+                        </Button>
+                      </div>
+                    </div>
+
+                    <MDBDataTable
+                      data={tableData}
+                      responsive
+                      bordered
+                      striped
+                      noBottomColumns
+                      paginationLabel={["Prev", "Next"]}
+                      hover
+                      pagesAmount={3}
+                    />
+                  </CardBody>
+                </Card>
+              </Col>
+            </Row>
+          </div>
+        </div>
+      
+    </div>
+  );
+};
+
+const styles = {
+  container: {
+    maxWidth: "600px",
+    margin: "20px auto",
+    padding: "20px",
+    borderRadius: "0.25rem",
+    backgroundColor: "#fff",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    boxShadow: "0 -3px 31px 0 rgba(0, 0, 0, 0.05), 0 6px 20px 0 rgba(0, 0, 0, 0.02)",
+    marginBottom: "2rem",
+  },
+  heading: {
+    textAlign: "center",
+    margin: "20px",
+  },
+  form: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "1rem",
+  },
+  inpGroup: {
+    display: "flex",
+    justifyContent: "space-evenly",
+    gap: "2rem",
+    width  :"200px"
+  },
+  formGroup: {
+    display: "flex",
+    flexDirection: "column",
+  },
+  button: {
+    padding: "0.5rem",
+    color: "#fff",
+    border: "none",
+    borderRadius: "0.25rem",
+    cursor: "pointer",
+    width: "40%",
+    alignSelf: "center",
+  },
+};
+
+export default SuspendedStudent;

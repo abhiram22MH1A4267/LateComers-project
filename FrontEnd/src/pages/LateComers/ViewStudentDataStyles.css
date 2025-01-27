@@ -1,0 +1,34 @@
+.modal-body {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.image-div {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: -10px;
+    margin-bottom: 10px;
+}
+
+.image-div img {
+  height: 120px;
+  width: 120px;
+  border-radius: 50%;
+}
+
+
+.details_group {
+    display: flex;
+    flex-wrap: wrap;
+    width: 100%;
+    justify-content: space-around;
+}
+
+.details_group .span {
+    font-weight: 900;
+    margin-right: 5px;
+}
+
